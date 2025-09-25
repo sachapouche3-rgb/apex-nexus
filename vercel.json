@@ -1,0 +1,17 @@
+"buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "env": {
+    "NEXTAUTH_URL": "@nextauth_url"
+  },
+  "build": {
+    "env": {
+      "NEXTAUTH_URL_INTERNAL": "http://localhost:3000"
+    }
+  }
+}
