@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Two-Factor Authentication
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+  backupCodes      String[]
+
+  // Profile and gaming data
+  profile UserProfile?
+
+  // Social features
+  sentFriendRequests     FriendRequest[] @relation("SentRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedRequests")
+  friendships1           Friendship[]    @relation("User1Friendships")
+  friendships2           Friendship[]    @relation("User2Friendships")
+
+  // Squad sessions
+  squadSessions SquadSession[]
+  squadMembers  SquadMember[]
+
+  // Messaging
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+
+  // Endorsements
+  givenEndorsements    Endorsement[] @relation("GivenEndorsements")
+  receivedEndorsements Endorsement[] @relation("ReceivedEndorsements")
+
+  // Verification tokens
+  verificationTokens VerificationToken[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Gaming preferences
+  platform        String[] // ["PC", "PlayStation", "Xbox", "Switch"]
+  gameMode        String[] // ["Ranked", "Casual", "Duos", "Mixtape"]
+  playstyle       String   @default("Casual") // "Sweaty", "Casual", "Learning"
+  micPreference   String   @default("Any") // "Required", "Preferred", "Any"
+  region          String   @default("North America")
+  language        String   @default("English")
+  ageRange        String?  // "18-25", "26-35", etc.
+
+  // Gaming stats
+  currentRank     String?
+  kdRatio         Float?
+  winRate         Float?
+  mainLegends     String[]
+  avgDamagePerGame Int?
+
+  // Account linking
+  eaAccount       String?
+  steamAccount    String?
+  psnAccount      String?
+  xboxAccount     String?
+
+  // Profile customization
+  bio             String?
+  badges          String[] // ["Chill Vibes", "Ranked Grinder", etc.]
+  isOnline        Boolean  @default(false)
+  lastSeen        DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_profiles")
+}
+
+model FriendRequest {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     String   @default("pending") // "pending", "accepted", "declined"
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  user1Id   String
+  user2Id   String
+  createdAt DateTime @default(now())
+
+  user1 User @relation("User1Friendships", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2 User @relation("User2Friendships", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  @@unique([user1Id, user2Id])
+  @@map("friendships")
+}
+
+model SquadSession {
+  id          String   @id @default(cuid())
+  creatorId   String
+  title       String
+  description String?
+  gameMode    String
+  platform    String
+  rankReq     String?
+  micRequired Boolean  @default(false)
+  maxMembers  Int      @default(3)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  creator User          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  members SquadMember[]
+
+  @@map("squad_sessions")
+}
+
+model SquadMember {
+  id        String   @id @default(cuid())
+  sessionId String
+  userId    String
+  joinedAt  DateTime @default(now())
+
+  session SquadSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@map("squad_members")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Endorsement {
+  id         String   @id @default(cuid())
+  giverId    String
+  receiverId String
+  type       String   // "Great Shot Caller", "Positive Attitude", "Good Teammate"
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  giver    User @relation("GivenEndorsements", fields: [giverId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedEndorsements", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([giverId, receiverId, type])
+  @@map("endorsements")
+}
+
+model Guide {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  category    String   // "Weapons", "Legends", "Meta", "Tips"
+  author      String
+  imageUrl    String?
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("guides")
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  type        String   // "Season Launch", "Tournament", "Collection Event"
+  startDate   DateTime
+  endDate     DateTime?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+
+  @@map("events")
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  type      String   // "email_verification", "password_reset"
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("verification_tokens")
+}
+
+model RateLimitLog {
+  id        String   @id @default(cuid())
+  key       String
+  count     Int      @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([key])
+  @@map("rate_limit_logs")
+}
